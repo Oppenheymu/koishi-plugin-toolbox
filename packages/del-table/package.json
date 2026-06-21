@@ -1,5 +1,5 @@
 {
-  "name": "@toolbox/koishi-plugin-deltable",
+  "name": "koishi-plugin-deltable",
   "version": "1.2.2",
   "contributors": [
     "Oppenheymu <oppenheymu@gmail.com>"

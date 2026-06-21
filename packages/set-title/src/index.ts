@@ -1,4 +1,6 @@
 import type { Context, Session } from 'koishi';
+import {} from 'koishi-plugin-adapter-onebot'
+
 
 export const name = 'SetTitle';
 
@@ -55,8 +57,47 @@ function resolveTarget(session: Session, target?: string): TargetResolution | nu
     };
 }
 
+/**
+ * 解析 set_group_special_title 调用失败的原因，返回面向用户的可读提示。
+ *
+ * OneBot 实现（如 napcat）返回的 retcode 各不相同，这里做常见值归类：
+ * - 1400：napcat 的 PacketBackend 不可用 / 不支持当前 QQ 版本架构（与权限无关）
+ * - 100/102/103：通常为参数或目标无效（如目标不在群内）
+ * - 104/权限类：机器人权限不足（设置群头衔需要机器人为群主）
+ * - 其余：附上 retcode 以便排查
+ *
+ * koishi-plugin-adapter-onebot 抛出的 SenderError 会把 retcode 同时挂在 `error.code`
+ * 与 `error.message` 文本中，两种来源都做兼容读取。
+ */
+function describeSetTitleError(error: unknown): string {
+    const err = error as { code?: unknown; message?: string } | undefined;
+    const code = typeof err?.code === 'number' ? err.code : undefined;
+
+    // 兜底：从 message 中提取 retcode（不同适配器抛出的错误结构可能不同）
+    let retcode = code;
+    if (retcode === undefined && err?.message) {
+        const match = err.message.match(/retcode[:\s]*(\d+)/i);
+        if (match) retcode = Number(match[1]);
+    }
+
+    switch (retcode) {
+        case 1400:
+            return '设置头衔失败：OneBot 实现（如 napcat）的 PacketBackend 不可用或不支持当前 QQ 版本，与机器人权限无关，请联系机器人运维处理。';
+        case 100:
+        case 102:
+        case 103:
+            return '设置头衔失败：参数或目标用户无效，请确认目标成员在本群内。';
+        case 104:
+            return '设置头衔失败：机器人权限不足，设置群头衔需要机器人为群主。';
+        case undefined:
+            return '设置头衔失败，请稍后重试或联系机器人运维。';
+        default:
+            return `设置头衔失败（错误码 ${retcode}），请联系机器人运维排查。`;
+    }
+}
+
 export function apply(ctx: Context) {
-    ctx.command('头衔 <title:string> [target:string]', '设置群专属头衔（仅 OneBot）')
+    ctx.command('设置头衔 <title:string> [target:string]', '设置群专属头衔（仅 OneBot）')
         .alias('title')
         .action(async (argv, title, target) => {
             const { session } = argv;
@@ -76,16 +117,20 @@ export function apply(ctx: Context) {
             const targetLabel = resolved ? resolved.targetLabel : '你';
 
             try {
+                // 使用 koishi onebot 适配器封装的 API，而非直接调用 napcat 底层 action
                 await session.bot.internal.setGroupSpecialTitle(
                     session.guildId,
                     targetUserId,
-                    value
+                    value,
+                    -1, // 永久有效
                 );
+
                 return value
                     ? `已将 ${targetLabel} 的头衔设为「${value}」`
                     : `已清除 ${targetLabel} 的头衔`;
-            } catch {
-                return '设置头衔失败，请确认机器人为群管理员。';
+            } catch (error) {
+                ctx.logger('tools').error('设置头衔 API 调用失败：', error);
+                return describeSetTitleError(error);
             }
         });
 }

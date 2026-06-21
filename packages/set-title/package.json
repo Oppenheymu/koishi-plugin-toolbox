@@ -1,6 +1,6 @@
 {
-  "name": "@toolbox/koishi-plugin-settitle",
-  "version": "1.0.2",
+  "name": "koishi-plugin-settitle",
+  "version": "1.0.3",
   "contributors": [
     "Oppenheymu <oppenheymu@gmail.com>"
   ],
