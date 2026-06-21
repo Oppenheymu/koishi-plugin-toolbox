@@ -1,0 +1,32 @@
+{
+  "name": "koishi-plugin-toolbox-hello",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.4"
+  },
+  "koishi": {
+    "description": {
+      "en": "A hello-world toolbox plugin for Koishi",
+      "zh": "一个简单的工具箱示例插件"
+    }
+  }
+}
