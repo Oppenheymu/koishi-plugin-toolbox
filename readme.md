@@ -1,13 +1,14 @@
 # koishi-plugin-toolbox
 
 > Koishi「工具箱」插件集合 · 单仓多包管理
+> 部分简单的API进行了加工提升健壮性
 
 ## 子包导航
 
 | 包名 | 路径 | 版本 | 简介 |
 |------|------|------|------|
-| [koishi-plugin-toolbox-settitle](./packages/set-title) | `packages/set-title` | ![npm](https://img.shields.io/npm/v/koishi-plugin-toolbox-settitle) | 极致精简的 OneBot 群头衔设置插件，开箱即用、零配置 |
-| [koishi-plugin-toolbox-deltable](./packages/del-table) | `packages/del-table` | ![npm](https://img.shields.io/npm/v/koishi-plugin-toolbox-deltable) | 一次性硬删除数据表工具，多步确认防误操作 |
+| [koishi-plugin-toolbox-settitle](./packages/set-title) | `packages/set-title` | ![npm](https://img.shields.io/npm/v/koishi-plugin-settitle) | 极致精简的 OneBot 群头衔设置插件，开箱即用、零配置 |
+| [koishi-plugin-toolbox-deltable](./packages/del-table) | `packages/del-table` | ![npm](https://img.shields.io/npm/v/koishi-plugin-deltable) | 一次性硬删除数据表工具，多步确认防误操作 |
 
 ## 特性一览
 
