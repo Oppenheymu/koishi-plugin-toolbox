@@ -85,10 +85,12 @@ function describeSetTitleError(error: unknown): string {
     switch (retcode) {
         case 1400:
             return '设置头衔失败：OneBot 实现（如 napcat）的 PacketBackend 不可用或不支持当前 QQ 版本，与机器人权限无关，请联系机器人运维处理。';
-        case 100:
-        case 102:
+
+        case 100: // fallthrough
+        case 102: // fallthrough
         case 103:
             return '设置头衔失败：参数或目标用户无效，请确认目标成员在本群内。';
+    
         case 104:
             return '设置头衔失败：机器人权限不足，设置群头衔需要机器人为群主。';
         case undefined:
