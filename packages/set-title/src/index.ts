@@ -1,6 +1,6 @@
 import type { Context, Session } from 'koishi';
 
-export const name = 'settitle';
+export const name = 'SetTitle';
 
 export const usage = `
 <div style="border-radius: 10px; border: 1px solid #ddd; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
