@@ -1,50 +1,50 @@
 {
-  "name": "koishi-plugin-toolbox-settitle",
-  "version": "1.0.0",
-  "contributors": [
-    "oppenheymu@gmail.com"
-  ],
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./lib/index.d.ts",
-      "development": "./src/index.ts",
-      "default": "./lib/index.js"
+    "name": "koishi-plugin-toolbox-settitle",
+    "version": "1.0.0",
+    "contributors": [
+        "oppenheymu@gmail.com"
+    ],
+    "main": "lib/index.js",
+    "types": "lib/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./lib/index.d.ts",
+            "development": "./src/index.ts",
+            "default": "./lib/index.js"
+        },
+        "./package.json": "./package.json"
     },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "lib"
-  ],
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
-  "homepage": "https://github.com/Oppenheymu/koishi-plugin-toolbox/tree/main/packages/set-title",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Oppenheymu/koishi-plugin-toolbox.git",
-    "directory": "packages/settitle"
-  },
-  "keywords": [
-    "chatbot",
-    "koishi",
-    "plugin",
-    "onebot",
-    "title"
-  ],
-  "scripts": {
-    "build": "tsc -b"
-  },
-  "peerDependencies": {
-    "koishi": "^4.17.4"
-  },
-  "koishi": {
-    "description": {
-      "en": "Set group members' special titles (OneBot only)",
-      "zh": "设置群成员的专属头衔（仅 OneBot）"
+    "files": [
+        "lib"
+    ],
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
     },
-    "service": {}
-  }
+    "homepage": "https://github.com/Oppenheymu/koishi-plugin-toolbox/tree/main/packages/set-title",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Oppenheymu/koishi-plugin-toolbox.git",
+        "directory": "packages/settitle"
+    },
+    "keywords": [
+        "chatbot",
+        "koishi",
+        "plugin",
+        "onebot",
+        "title"
+    ],
+    "scripts": {
+        "build": "tsc -b"
+    },
+    "peerDependencies": {
+        "koishi": "^4.17.4"
+    },
+    "koishi": {
+        "description": {
+            "en": "Set group members' special titles (OneBot only)",
+            "zh": "设置群成员的专属头衔（仅 OneBot）"
+        },
+        "service": {}
+    }
 }

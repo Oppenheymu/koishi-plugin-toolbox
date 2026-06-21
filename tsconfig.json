@@ -1,7 +1,4 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./packages/settitle" },
-    { "path": "./packages/del-table" }
-  ]
+    "files": [],
+    "references": [{ "path": "./packages/set-title" }, { "path": "./packages/del-table" }]
 }
