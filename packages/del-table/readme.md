@@ -1,6 +1,6 @@
 # koishi-plugin-del-table
 
-[![npm](https://img.shields.io/npm/v/koishi-plugin-del-table?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-del-table)
+[![npm](https://img.shields.io/npm/v/koishi-plugin-deltable?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-deltable)
 
 一次性删表可以用我喵
 本插件几乎完全由真人编写

@@ -1,53 +1,53 @@
 {
-    "name": "koishi-plugin-toolbox-deltable",
-    "version": "1.2.0",
-    "contributors": [
-        "Oppenheimu <266071743+Oppenheimu@users.noreply.github.com>"
-    ],
-    "main": "lib/index.js",
-    "types": "lib/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./lib/index.d.ts",
-            "development": "./src/index.ts",
-            "default": "./lib/index.js"
-        },
-        "./package.json": "./package.json"
+  "name": "@toolbox/koishi-plugin-deltable",
+  "version": "1.2.2",
+  "contributors": [
+    "Oppenheymu <oppenheymu@gmail.com>"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./lib/index.js"
     },
-    "files": [
-        "lib"
-    ],
-    "license": "MIT",
-    "publishConfig": {
-        "access": "public"
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/Oppenheymu/koishi-plugin-toolbox/tree/main/packages/del-table",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Oppenheymu/koishi-plugin-toolbox.git",
+    "directory": "packages/del-table"
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "database"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.4"
+  },
+  "koishi": {
+    "description": {
+      "en": "Delete database tables with multi-step confirmation",
+      "zh": "一次性删表可以用我"
     },
-    "homepage": "https://github.com/Oppenheymu/koishi-plugin-toolbox/tree/main/packages/del-table",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/Oppenheymu/koishi-plugin-toolbox.git",
-        "directory": "packages/del-table"
-    },
-    "keywords": [
-        "chatbot",
-        "koishi",
-        "plugin",
+    "service": {
+      "required": [
         "database"
-    ],
-    "scripts": {
-        "build": "tsc -b"
-    },
-    "peerDependencies": {
-        "koishi": "^4.17.4"
-    },
-    "koishi": {
-        "description": {
-            "en": "Delete database tables with multi-step confirmation",
-            "zh": "一次性删表可以用我"
-        },
-        "service": {
-            "required": [
-                "database"
-            ]
-        }
+      ]
     }
+  }
 }

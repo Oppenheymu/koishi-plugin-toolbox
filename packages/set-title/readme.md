@@ -1,5 +1,7 @@
 # koishi-plugin-toolbox-settitle
 
+[![npm](https://img.shields.io/npm/v/koishi-plugin-settitle?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-settitle)
+
 极致精简的 OneBot 头衔设置插件，开箱即用。
 
 ## 功能
