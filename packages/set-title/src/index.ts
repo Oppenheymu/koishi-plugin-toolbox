@@ -19,6 +19,8 @@ export const usage = `
     <li><code>头衔 &lt;内容&gt;</code> — 设置自己的群头衔</li>
     <li><code>头衔 &lt;内容&gt; @某人</code> — 为指定成员设置头衔（也可直接传 QQ 号）</li>
     <li><code>title &lt;内容&gt;</code> — 同上（英文别名）</li>
+    <li><code>清除头衔 [@某人]</code> — 清除自己（或指定成员）的群头衔</li>
+    <li><code>cleartitle</code> — 同上（英文别名）</li>
   </ul>
 </div>
 
@@ -96,41 +98,61 @@ function describeSetTitleError(error: unknown): string {
     }
 }
 
+/**
+ * 校验平台/群聊环境、解析目标，并调用 OneBot 设置群头衔 API。
+ * 传入空 value 即为清除头衔。返回面向用户的结果文案。
+ */
+async function doSetTitle(
+    ctx: Context,
+    session: Session,
+    value: string,
+    target?: string,
+): Promise<string> {
+    if (session.platform !== 'onebot') return '该指令仅支持 OneBot 平台。';
+    if (!session.guildId) return '请在群聊中使用该指令。';
+
+    // 无目标参数时默认给自己设置
+    const resolved = resolveTarget(session, target);
+    const targetUserId = resolved ? resolved.targetUserId : session.userId;
+    const targetLabel = resolved ? resolved.targetLabel : '你';
+
+    try {
+        // 使用 koishi onebot 适配器封装的 API，而非直接调用 napcat 底层 action
+        await session.bot.internal.setGroupSpecialTitle(
+            session.guildId,
+            targetUserId,
+            value,
+            -1, // 永久有效
+        );
+        return value
+            ? `已将 ${targetLabel} 的头衔设为「${value}」`
+            : `已清除 ${targetLabel} 的头衔`;
+    } catch (error) {
+        ctx.logger('tools').error('设置头衔 API 调用失败：', error);
+        return describeSetTitleError(error);
+    }
+}
+
 export function apply(ctx: Context) {
     ctx.command('设置头衔 <title:string> [target:string]', '设置群专属头衔（仅 OneBot）')
         .alias('title')
         .action(async (argv, title, target) => {
             const { session } = argv;
             if (!session) return '无法获取会话信息。';
-            if (session.platform !== 'onebot') return '该指令仅支持 OneBot 平台。';
-            if (!session.guildId) return '请在群聊中使用该指令。';
 
             const value = title || '';
             // QQ 群头衔上限为 18 字节（UTF-8）
             if (Buffer.byteLength(value, 'utf8') > 18) {
                 return '头衔过长，最多 18 字节（6 个汉字或 18 个英文字符）。';
             }
+            return doSetTitle(ctx, session, value, target);
+        });
 
-            // 无目标参数时默认给自己设置
-            const resolved = resolveTarget(session, target);
-            const targetUserId = resolved ? resolved.targetUserId : session.userId;
-            const targetLabel = resolved ? resolved.targetLabel : '你';
-
-            try {
-                // 使用 koishi onebot 适配器封装的 API，而非直接调用 napcat 底层 action
-                await session.bot.internal.setGroupSpecialTitle(
-                    session.guildId,
-                    targetUserId,
-                    value,
-                    -1, // 永久有效
-                );
-
-                return value
-                    ? `已将 ${targetLabel} 的头衔设为「${value}」`
-                    : `已清除 ${targetLabel} 的头衔`;
-            } catch (error) {
-                ctx.logger('tools').error('设置头衔 API 调用失败：', error);
-                return describeSetTitleError(error);
-            }
+    ctx.command('清除头衔 [target:string]', '清除群专属头衔（仅 OneBot）')
+        .alias('cleartitle')
+        .action(async (argv, target) => {
+            const { session } = argv;
+            if (!session) return '无法获取会话信息。';
+            return doSetTitle(ctx, session, '', target);
         });
 }
