@@ -1,5 +1,5 @@
 {
-  "name": "koishi-plugin-toolbox-hello",
+  "name": "koishi-plugin-toolbox-settitle",
   "version": "1.0.0",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -25,8 +25,8 @@
   },
   "koishi": {
     "description": {
-      "en": "A hello-world toolbox plugin for Koishi",
-      "zh": "一个简单的工具箱示例插件"
+      "en": "Set your own group special title (OneBot only)",
+      "zh": "设置自己的群头衔（仅 OneBot）"
     }
   }
 }
