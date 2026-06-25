@@ -9,6 +9,7 @@
 |------|------|------|------|
 | [koishi-plugin-toolbox-settitle](./packages/set-title) | `packages/set-title` | ![npm](https://img.shields.io/npm/v/koishi-plugin-settitle) | 极致精简的 OneBot 群头衔设置插件，开箱即用、零配置 |
 | [koishi-plugin-toolbox-deltable](./packages/del-table) | `packages/del-table` | ![npm](https://img.shields.io/npm/v/koishi-plugin-deltable) | 一次性硬删除数据表工具，多步确认防误操作 |
+| [koishi-plugin-setadmin](./packages/set-admin) | `packages/set-admin` | ![npm](https://img.shields.io/npm/v/koishi-plugin-setadmin) | 极致精简的 OneBot 群管理员设置/取消插件，开箱即用、零配置 |
 
 ## 特性一览
 
@@ -19,6 +20,15 @@
 - 无参数时清除自己头衔；可 `@` 或传 QQ 号为他人设置
 - 头衔长度校验（最多 18 字节，即 6 个汉字或 18 个英文字符）
 - 机器人需为群管理员或群主才能成功设置
+
+### 👑 setadmin
+
+- 仅适用于 **OneBot** 平台，用于设置 / 取消群管理员
+- 指令：`设置管理员 @某人`、`取消管理员 @某人`（也支持直接传 QQ 号），`admin` / `unadmin` 为英文别名
+- 需显式指定目标（`@` 或 QQ 号），不支持对机器人自身操作
+- 调用前先查询成员信息预校验：拦截对群主操作、重复设置 / 取消等无意义请求
+- 完善的 retcode 错误归类（权限不足、目标无效、PacketBackend 不可用等）
+- 机器人需为群主才能成功设置管理员
 
 ### 🗑️ deltable
 

@@ -1,0 +1,50 @@
+{
+  "name": "koishi-plugin-setadmin",
+  "version": "1.0.0",
+  "contributors": [
+    "Oppenheymu <oppenheymu@gmail.com>"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/Oppenheymu/koishi-plugin-toolbox/tree/main/packages/set-admin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Oppenheymu/koishi-plugin-toolbox.git",
+    "directory": "packages/set-admin"
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "onebot",
+    "admin"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "koishi": "^4.17.4"
+  },
+  "koishi": {
+    "description": {
+      "en": "Set / unset group admins (OneBot only)",
+      "zh": "设置 / 取消群管理员（仅 OneBot）"
+    },
+    "service": {}
+  }
+}

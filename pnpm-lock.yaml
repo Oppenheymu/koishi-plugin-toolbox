@@ -18,7 +18,19 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  packages/hello:
+  packages/del-table:
+    dependencies:
+      koishi:
+        specifier: ^4.17.4
+        version: 4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1)
+
+  packages/set-admin:
+    dependencies:
+      koishi:
+        specifier: ^4.17.4
+        version: 4.18.11(@cordisjs/plugin-http@0.6.3(cordis@3.18.1))(cordis@3.18.1)
+
+  packages/set-title:
     dependencies:
       koishi:
         specifier: ^4.17.4
