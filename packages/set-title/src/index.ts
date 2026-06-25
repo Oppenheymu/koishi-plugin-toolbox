@@ -1,3 +1,4 @@
+import { Schema } from 'koishi';
 import type { Context, Session } from 'koishi';
 import {} from 'koishi-plugin-adapter-onebot'
 
@@ -135,8 +136,28 @@ async function doSetTitle(
     }
 }
 
-export function apply(ctx: Context) {
-    ctx.command('设置头衔 <title:string> [target:string]', '设置群专属头衔（仅 OneBot）')
+export interface Config {
+    /**
+     * 使用「设置头衔 / 清除头衔」指令所需的最低用户权限等级。
+     * Koishi 默认权限等级：0 未授权，1 普通用户，2 管理员，3 超管，4+ 自定义。
+     * 为后续统一权限管理预留：此处仅做指令级门槛，实际群操作权限仍由 OneBot 侧校验。
+     */
+    minAuthority: number;
+}
+
+export const Config: Schema<Config> = Schema.object({
+    minAuthority: Schema.number()
+        .default(1)
+        .min(0)
+        .max(5)
+        .step(1)
+        .description('使用「设置头衔 / 清除头衔」指令所需的最低用户权限等级（0-5）。默认 1。'),
+});
+
+export function apply(ctx: Context, config: Config) {
+    const authority = config.minAuthority;
+
+    ctx.command('设置头衔 <title:string> [target:string]', '设置群专属头衔（仅 OneBot）', { authority })
         .alias('title')
         .action(async (argv, title, target) => {
             const { session } = argv;
@@ -150,7 +171,7 @@ export function apply(ctx: Context) {
             return doSetTitle(ctx, session, value, target);
         });
 
-    ctx.command('清除头衔 [target:string]', '清除群专属头衔（仅 OneBot）')
+    ctx.command('清除头衔 [target:string]', '清除群专属头衔（仅 OneBot）', { authority })
         .alias('cleartitle')
         .action(async (argv, target) => {
             const { session } = argv;
