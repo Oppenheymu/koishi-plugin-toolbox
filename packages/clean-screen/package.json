@@ -43,7 +43,7 @@
   "koishi": {
     "description": {
       "en": "Clear the screen by unsending messages",
-      "zh": "撤回消息来（暴力）清屏"
+      "zh": "机器人必须是群主，通过撤回消息来（暴力）清屏"
     },
     "service": {}
   }
