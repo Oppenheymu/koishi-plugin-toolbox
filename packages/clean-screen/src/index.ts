@@ -9,7 +9,7 @@ export const usage = `
   <p>✨ 极致精简，开箱即用，零配置</p>
   <p>🎯 在群聊中撤回最近的若干条消息，达到「清屏」效果</p>
   <p>⚠️ 仅适用于 <strong>OneBot</strong> 平台，机器人需为 <strong>群主</strong> 才能撤回他人消息</p>
-  <p>⏳ 受 QQ 限制，超过 <strong>2 分钟</strong> 的消息无法撤回</p>
+  <p>⏳ 群主撤回群内消息<strong>无时间限制</strong>（自己与群员消息均可撤回）</p>
 </div>
 
 <div style="border-radius: 10px; border: 1px solid #ddd; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
@@ -90,6 +90,28 @@ async function collectRecentMessageIds(
 }
 
 /**
+ * 从 delete_msg 失败的 SenderError 中提取 retcode，返回简短标识（仅用于 debug 日志）。
+ *
+ * 撤回失败最常见原因是目标消息已被撤回，调用方会将其静默跳过，
+ * 此处仅给出 retcode 便于排查，不做可能误导的具体归因。
+ *
+ * koishi-plugin-adapter-onebot 抛出的 SenderError 会把 retcode 同时挂在
+ * `error.code` 与 `error.message` 文本中，两种来源都做兼容读取。
+ */
+function describeRecallError(error: unknown): string {
+    const err = error as { code?: unknown; message?: string } | undefined;
+    const code = typeof err?.code === 'number' ? err.code : undefined;
+
+    let retcode = code;
+    if (retcode === undefined && err?.message) {
+        const match = err.message.match(/retcode[:\s]*(\d+)/i);
+        if (match) retcode = Number(match[1]);
+    }
+
+    return retcode === undefined ? '未知错误' : `retcode ${retcode}`;
+}
+
+/**
  * 校验平台/群聊环境、机器人是否群主，并撤回最近 count 条消息。
  * 返回面向用户的结果文案。
  */
@@ -114,20 +136,23 @@ async function doCleanScreen(ctx: Context, session: Session, count: number): Pro
         return '没有可撤回的消息。';
     }
 
-    // 逐条撤回，单条失败（如超过 2 分钟）不中断后续，统计成功数
+    // 逐条撤回；失败最常见原因是该消息已被撤回，静默跳过，仅 debug 记录
     let success = 0;
+    let skipped = 0;
     for (const id of targetIds) {
         try {
             await session.bot.internal.deleteMsg(id);
             success++;
         } catch (error) {
-            ctx.logger('tools').warn(`撤回消息 ${id} 失败：`, error);
+            ctx.logger('tools').debug(
+                `撤回 ${id} 失败（可能已撤回）：${describeRecallError(error)}`
+            );
+            skipped++;
         }
     }
 
-    return success === targetIds.length
-        ? `已清屏：撤回 ${success} 条消息。`
-        : `已撤回 ${success}/${targetIds.length} 条消息（部分消息可能超过 2 分钟无法撤回）。`;
+    if (skipped === 0) return `已清屏：撤回 ${success} 条消息。`;
+    return `已撤回 ${success} 条消息（另有 ${skipped} 条可能已撤回，已跳过）。`;
 }
 
 export interface Config {

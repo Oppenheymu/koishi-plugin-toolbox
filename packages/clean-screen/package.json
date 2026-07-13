@@ -42,8 +42,8 @@
   },
   "koishi": {
     "description": {
-      "en": "Clear the screen by sending blank lines",
-      "zh": "发送换行刷屏清屏"
+      "en": "Clear the screen by unsending messages",
+      "zh": "撤回消息来（暴力）清屏"
     },
     "service": {}
   }
