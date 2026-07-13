@@ -10,6 +10,7 @@
 | [koishi-plugin-toolbox-settitle](./packages/set-title) | `packages/set-title` | ![npm](https://img.shields.io/npm/v/koishi-plugin-settitle) | 极致精简的 OneBot 群头衔设置插件，开箱即用、零配置 |
 | [koishi-plugin-toolbox-deltable](./packages/del-table) | `packages/del-table` | ![npm](https://img.shields.io/npm/v/koishi-plugin-deltable) | 一次性硬删除数据表工具，多步确认防误操作 |
 | [koishi-plugin-setadmin](./packages/set-admin) | `packages/set-admin` | ![npm](https://img.shields.io/npm/v/koishi-plugin-setadmin) | 极致精简的 OneBot 群管理员设置/取消插件，开箱即用、零配置 |
+| [koishi-plugin-cleanscreen](./packages/clean-screen) | `packages/clean-screen` | ![npm](https://img.shields.io/npm/v/koishi-plugin-cleanscreen) | 极致精简的 OneBot 群清屏插件，撤回最近若干条消息 |
 
 ## 特性一览
 
@@ -37,6 +38,14 @@
 - 指令：`删除表 <表名>`（需 4 级权限，多步确认）、`检查表`（别名 `查看表`）
 - 可配置确认等待时间（默认 30 秒）与确认模式
 - 依赖 `database` 服务，内置 `zh-CN` / `en-US` 双语本地化
+
+### 🧹 cleanscreen
+
+- 仅适用于 **OneBot** 平台，撤回群内最近若干条消息，达到「清屏」效果
+- 指令：`清屏 [条数]`、`clear [条数]`（英文别名）
+- 不传参按默认条数撤回，传参指定条数（受 `maxCount` 上限钳制）
+- 机器人需为 **群主** 才能撤回他人消息；自动翻页获取历史消息，跳过机器人自身消息
+- 单条撤回失败（如超过 2 分钟）不中断，统计成功数
 
 ## 交流与反馈
 
