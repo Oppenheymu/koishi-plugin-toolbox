@@ -17,8 +17,8 @@ export const usage = `
   <ul>
     <li><code>清屏</code> — 撤回最近 <code>count</code> 条消息（默认 20）</li>
     <li><code>清屏 &lt;条数&gt;</code> — 撤回指定条数的最近消息（受 <code>maxCount</code> 限制）</li>
-    <li><code>clear</code> — 同上（英文别名）</li>
-    <li><code>clear &lt;条数&gt;</code> — 同上（英文别名）</li>
+    <li><code>cleanscreen</code> — 同上（英文别名）</li>
+    <li><code>cleanscreen &lt;条数&gt;</code> — 同上（英文别名）</li>
   </ul>
   <p>💡 机器人自身的历史消息会被跳过，不参与撤回。</p>
 </div>
@@ -169,7 +169,7 @@ export function apply(ctx: Context, config: Config) {
     const authority = config.minAuthority;
 
     ctx.command('清屏 [count:number]', '撤回最近若干条消息（仅 OneBot，需群主）', { authority })
-        .alias('clear')
+        .alias('cleanscreen')
         .action(async (argv, count) => {
             const { session } = argv;
             if (!session) return '无法获取会话信息。';
