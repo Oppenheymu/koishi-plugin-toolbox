@@ -2,6 +2,7 @@
     "files": [],
     "references": [
         { "path": "./packages/set-title" },
+        { "path": "./packages/set-admin" },
         { "path": "./packages/del-table" },
         { "path": "./packages/clean-screen" }
     ]

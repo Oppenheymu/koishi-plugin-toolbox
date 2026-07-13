@@ -1,7 +1,7 @@
 import { type Context, Schema, type Session } from 'koishi';
 import 'koishi-plugin-adapter-onebot';
 
-export const name = 'CleanScreen';
+export const name = 'clean-screen';
 
 export const usage = `
 <div style="border-radius: 10px; border: 1px solid #ddd; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
