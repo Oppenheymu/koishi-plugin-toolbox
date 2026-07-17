@@ -31,13 +31,12 @@ export const usage = `
 `;
 
 /**
- * 翻页收集本群最近 count 条消息的 message_id（按时间从新到旧）。
+ * 获取本群最近 count 条消息的 message_id（按时间从新到旧），跳过机器人自身消息。
  *
- * OneBot 的 getGroupMsgHistory 一次只返回有限条数（napcat 通常 20 条），
- * 因此以「本批最旧消息的 message_seq」作为下一次查询的游标向前翻页，
- * 直到收够 count 条、没有更早消息、或翻页次数达到上限为止。
- *
- * 用 message_id 去重防止翻页边界重复，并跳过机器人自身发送的消息。
+ * napcat 的 get_group_msg_history 传 message_seq 时不会向前回溯（Issue #441），
+ * 故翻页无效；但其支持 count 参数，可一次指定返回条数。koishi 适配器的
+ * internal.getGroupMsgHistory 未暴露 count，这里通过底层 _request 直接调用，
+ * 不传 message_seq 即从最新消息向前取 count 条。
  */
 async function collectRecentMessageIds(
     ctx: Context,
@@ -46,46 +45,41 @@ async function collectRecentMessageIds(
     count: number
 ): Promise<number[]> {
     const selfId = session.bot.selfId;
-    const targetIds: number[] = [];
-    const seen = new Set<number>();
-    let seq: number | undefined;
-    const MAX_PAGES = 20; // 翻页保护，避免异常情况下无限循环
 
-    for (let page = 0; page < MAX_PAGES && targetIds.length < count; page++) {
-        let messages: {
-            message_id: number;
-            message_seq: number;
-            sender?: { user_id?: number };
-        }[];
-        try {
-            const res = await session.bot.internal.getGroupMsgHistory(groupId, seq);
-            messages = (res?.messages ?? []) as typeof messages;
-        } catch (error) {
-            ctx.logger('tools').error('获取群历史消息失败：', error);
-            break;
+    let messages: { message_id: number; sender?: { user_id?: number } }[];
+    try {
+        // koishi 适配器未暴露 count 参数，直接通过底层 _request 调用 napcat 原生接口
+        const response = await session.bot.internal._request?.('get_group_msg_history', {
+            group_id: groupId,
+            count,
+        });
+        if (response?.retcode !== 0) {
+            ctx.logger('tools').error(
+                `获取群历史消息失败：retcode ${response?.retcode ?? 'unknown'}`
+            );
+            return [];
         }
-        if (!messages.length) break;
-
-        // 历史消息按时间正序（旧→新），从最新一条向前收集
-        for (let i = messages.length - 1; i >= 0; i--) {
-            const msg = messages[i];
-            if (seen.has(msg.message_id)) continue;
-            seen.add(msg.message_id);
-
-            // 跳过机器人自身的历史消息
-            const senderId = msg.sender?.user_id;
-            if (senderId !== undefined && String(senderId) === selfId) continue;
-
-            targetIds.push(msg.message_id);
-            if (targetIds.length >= count) break;
-        }
-
-        // 用本批最旧消息的 seq 继续向前翻页；seq 未变说明没有更早消息了
-        const oldestSeq = messages[0].message_seq;
-        if (oldestSeq === seq) break;
-        seq = oldestSeq;
+        messages = (response.data?.messages ?? []) as typeof messages;
+    } catch (error) {
+        ctx.logger('tools').error('获取群历史消息失败：', error);
+        return [];
     }
 
+    const targetIds: number[] = [];
+    const seen = new Set<number>();
+    // 历史消息按时间正序（旧→新），从最新一条向前收集
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (seen.has(msg.message_id)) continue;
+        seen.add(msg.message_id);
+
+        // 跳过机器人自身的历史消息
+        const senderId = msg.sender?.user_id;
+        if (senderId !== undefined && String(senderId) === selfId) continue;
+
+        targetIds.push(msg.message_id);
+        if (targetIds.length >= count) break;
+    }
     return targetIds;
 }
 
