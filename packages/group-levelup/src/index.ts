@@ -10,6 +10,7 @@ export const usage = `
 
 <div style="border-radius: 10px; border: 1px solid #ddd; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
   <h2 style="margin-top: 0; color: #4a6ee0;">📖 使用说明</h2>
+  <p>🗑️ 本插件仅支持Onebot平台</p>
   <p>🗑️ 本插件通过群打卡和冒泡、续火来快速升级群等级</p>
   <p>⚠️ 可能会被群管理 <strong>制裁</strong> ，谨慎使用！</p>
 </div>
@@ -22,67 +23,127 @@ export const usage = `
 `;
 
 export interface Config {
-    /** 需要签到的群号列表，留空则对所有已加入的群进行签到 */
-    groups: string[];
-    /** 定时签到的 Cron 表达式，默认为每日 0 点 */
-    cronTime: string;
+    /** 是否启用每日群打卡签到 */
+    signIn: boolean;
+    /** 群打卡的 Cron 表达式 */
+    signInCron: string;
+    /** 是否启用每日随机冒泡 */
+    bubble: boolean;
+    /** 每日冒泡次数 */
+    bubbleCount: number;
+    /** 冒泡文本列表，每次随机选择一条 */
+    bubbleTexts: string[];
 }
 
 export const Config: Schema<Config> = Schema.object({
-    groups: Schema.array(Schema.string())
-        .default([])
-        .description('需要签到的群号列表，留空则对所有已加入的群进行签到'),
-    cronTime: Schema.string()
+    signIn: Schema.boolean().default(true).description('是否启用每日群打卡签到'),
+    signInCron: Schema.string()
         .default('0 0 * * *')
-        .description('定时签到的 Cron 表达式，默认为每日 0 点'),
+        .description('群打卡的 Cron 表达式，默认为每日 0 点'),
+    bubble: Schema.boolean().default(true).description('是否启用每日随机冒泡'),
+    bubbleCount: Schema.number()
+        .default(1)
+        .min(1)
+        .max(10)
+        .step(1)
+        .description('每日冒泡次数 (1-10)'),
+    bubbleTexts: Schema.array(Schema.string())
+        .default(['冒泡'])
+        .description('冒泡文本列表，每次随机选择一条发送'),
 });
 
 export const inject = {
     required: ['cron'],
 };
 
-export function apply(ctx: Context, config: Config) {
-    ctx.cron(config.cronTime, async () => {
-        const bots = ctx.bots;
-        for (const bot of bots) {
-            // 仅 OneBot/NapCat 平台支持群签到
-            if (bot.platform !== 'onebot') continue;
+function pickRandom<T>(arr: readonly T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
 
-            try {
-                const guildList = await bot.getGuildList();
-                const configured = new Set(config.groups);
+function scheduleBubble(ctx: Context, config: Config, logger: ReturnType<typeof ctx.logger>) {
+    const count = config.bubbleCount;
+    const dayMs = 24 * 60 * 60 * 1000;
+    // 将一天分成 count 段，每段内随机取一个时间点
+    const segmentMs = dayMs / count;
 
-                for (const guild of guildList.data) {
-                    const groupId = guild.id;
+    for (let i = 0; i < count; i++) {
+        const base = i * segmentMs;
+        const randomOffset = Math.random() * segmentMs;
+        const delay = base + randomOffset;
 
-                    // 如果配置了指定群号，则只签到配置的群
-                    if (config.groups.length > 0 && !configured.has(groupId)) {
-                        continue;
-                    }
+        ctx.setTimeout(async () => {
+            if (!config.bubble) return;
 
-                    try {
-                        const response = await bot.internal._request?.('send_group_sign', {
-                            group_id: Number(groupId),
-                        });
+            const text = pickRandom(config.bubbleTexts);
+            const bots = ctx.bots;
 
-                        if (response?.retcode === 0) {
-                            ctx.logger('group-levelup').info(
-                                `群 ${groupId}(${guild.name}) 签到成功`
-                            );
-                        } else {
-                            ctx.logger('group-levelup').warn(
-                                `群 ${groupId}(${guild.name}) 签到失败: retcode=${response?.retcode ?? 'unknown'}`
-                            );
+            for (const bot of bots) {
+                if (bot.platform !== 'onebot') continue;
+
+                try {
+                    const guildList = await bot.getGuildList();
+                    for (const guild of guildList.data) {
+                        try {
+                            await bot.sendMessage(guild.id, text);
+                            logger.info(`群 ${guild.id}(${guild.name}) 冒泡: ${text}`);
+                        } catch (e) {
+                            logger.warn(`群 ${guild.id}(${guild.name}) 冒泡异常: ${e}`);
                         }
-                    } catch (e) {
-                        ctx.logger('group-levelup').warn(
-                            `群 ${groupId}(${guild.name}) 签到异常: ${e}`
-                        );
                     }
+                } catch (e) {
+                    logger.error(`获取群列表失败: ${e}`);
                 }
-            } catch (e) {
-                ctx.logger('group-levelup').error(`获取群列表失败: ${e}`);
             }
-        }
-    });
+        }, delay);
+    }
+
+    // 下一天的这一时刻重新安排
+    ctx.setTimeout(() => {
+        scheduleBubble(ctx, config, logger);
+    }, dayMs);
+}
+
+export function apply(ctx: Context, config: Config) {
+    const logger = ctx.logger('group-levelup');
+
+    // 群打卡
+    if (config.signIn) {
+        ctx.cron(config.signInCron, async () => {
+            const bots = ctx.bots;
+            for (const bot of bots) {
+                if (bot.platform !== 'onebot') continue;
+
+                try {
+                    const guildList = await bot.getGuildList();
+
+                    for (const guild of guildList.data) {
+                        const groupId = guild.id;
+
+                        try {
+                            const response = await bot.internal._request?.('send_group_sign', {
+                                group_id: Number(groupId),
+                            });
+
+                            if (response?.retcode === 0) {
+                                logger.info(`群 ${groupId}(${guild.name}) 签到成功`);
+                            } else {
+                                logger.warn(
+                                    `群 ${groupId}(${guild.name}) 签到失败: retcode=${response?.retcode ?? 'unknown'}`
+                                );
+                            }
+                        } catch (e) {
+                            logger.warn(`群 ${groupId}(${guild.name}) 签到异常: ${e}`);
+                        }
+                    }
+                } catch (e) {
+                    logger.error(`获取群列表失败: ${e}`);
+                }
+            }
+        });
+    }
+
+    // 每日随机冒泡
+    if (config.bubble) {
+        scheduleBubble(ctx, config, logger);
+    }
 }
