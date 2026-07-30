@@ -114,16 +114,16 @@ function describeRecallError(error: unknown): string {
 type CleanMode = 'recall' | 'space' | 'both';
 
 /**
- * 发送一条以零宽空格开头、后跟大量换行的长消息，将聊天记录「顶」出屏幕。
- * \u200B 用于防止 QQ 将消息当作空内容忽略。
+ * 发送一条由大量空白行组成的长消息，将聊天记录「顶」出屏幕。
+ * 每行开头都有一个 \u200B（零宽空格），防止 QQ 将空行折叠或当作空消息丢弃。
  */
 async function sendSpaceMessage(
     ctx: Context,
     session: Session,
     spaceLines: number
 ): Promise<boolean> {
-    // \u200B 零宽空格确保消息不被 QQ 当作空消息丢弃
-    const content = '\u200B' + '\n'.repeat(spaceLines);
+    // \u200B 零宽空格：每行一个，确保 QQ 不会合并连续空行
+    const content = '\u200B\n'.repeat(spaceLines);
     try {
         await session.send(content);
         return true;
@@ -250,11 +250,10 @@ export const Config: Schema<Config> = Schema.object({
         .step(1)
         .description('单次清屏允许撤回的最大条数，防止滥用。默认 50。'),
     spaceLines: Schema.number()
-        .default(60)
+        .default(1000)
         .min(10)
-        .max(200)
         .step(1)
-        .description('空白消息中包含的换行数（越大空白越长）。默认 60。'),
+        .description('空白消息中包含的换行数（越大空白越长）。小了没效果'),
 });
 
 export function apply(ctx: Context, config: Config) {
