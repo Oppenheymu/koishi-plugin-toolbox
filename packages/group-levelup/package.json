@@ -38,8 +38,8 @@
     },
     "peerDependencies": {
         "koishi": "^4.17.4",
-        "koishi-plugin-cron-fix": "^1.0.0",
-        "koishi-plugin-adapter-onebot": "^6.0.0"
+        "koishi-plugin-adapter-onebot": "^6.0.0",
+        "koishi-plugin-cron-fix": "^1.0.0"
     },
     "koishi": {
         "description": {

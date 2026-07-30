@@ -39,7 +39,7 @@ export const Config: Schema<Config> = Schema.intersect([
     // 群打卡配置块
     Schema.intersect([
         Schema.object({
-            signIn: Schema.boolean().default(true).description('是否启用每日群打卡签到'),
+            signIn: Schema.boolean().description('是否启用每日群打卡签到'),
         }).description('群打卡'),
         Schema.union([
             Schema.object({
@@ -55,7 +55,7 @@ export const Config: Schema<Config> = Schema.intersect([
     // 随机冒泡配置块
     Schema.intersect([
         Schema.object({
-            bubble: Schema.boolean().default(true).description('是否启用每日随机冒泡'),
+            bubble: Schema.boolean().description('是否启用每日随机冒泡'),
         }).description('随机冒泡'),
         Schema.union([
             Schema.object({
