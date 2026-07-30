@@ -15,10 +15,17 @@ export const usage = `
 <div style="border-radius: 10px; border: 1px solid #ddd; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
   <h2 style="margin-top: 0; color: #e0574a;">⚡ 命令</h2>
   <ul>
-    <li><code>清屏</code> — 撤回最近 <code>count</code> 条消息（默认 20）</li>
-    <li><code>清屏 &lt;条数&gt;</code> — 撤回指定条数的最近消息（受 <code>maxCount</code> 限制）</li>
+    <li><code>清屏</code> — 按默认类型和数量清屏</li>
+    <li><code>清屏 &lt;类型&gt;</code> — 按指定类型清屏（空格 / 撤回 / 混合）</li>
+    <li><code>清屏 &lt;类型&gt; &lt;条数&gt;</code> — 按指定类型和数量清屏</li>
     <li><code>cleanscreen</code> — 同上（英文别名）</li>
-    <li><code>cleanscreen &lt;条数&gt;</code> — 同上（英文别名）</li>
+    <li><code>cleanscreen &lt;类型&gt; [条数]</code> — 同上（英文别名）</li>
+  </ul>
+  <p>📌 <strong>清屏类型说明：</strong></p>
+  <ul>
+    <li><code>空格</code> / <code>space</code> — 发送大量空行消息，将聊天记录「顶」出屏幕</li>
+    <li><code>撤回</code> / <code>recall</code> — 撤回最近若干条消息（默认，需群主）</li>
+    <li><code>混合</code> / <code>both</code> — 先撤回再发空格，双保险</li>
   </ul>
   <p>💡 机器人自身的历史消息会被跳过，不参与撤回。</p>
 </div>
@@ -105,48 +112,116 @@ function describeRecallError(error: unknown): string {
     return retcode === undefined ? '未知错误' : `retcode ${retcode}`;
 }
 
+/** 清屏模式类型 */
+type CleanMode = 'recall' | 'space' | 'both';
+
 /**
- * 校验平台/群聊环境、机器人是否群主，并撤回最近 count 条消息。
+ * 发送大量仅含空行的消息，将聊天记录「顶」出屏幕。
+ * 逐条发送，间隔 200ms 避免触发频率限制。
+ */
+async function sendSpaceMessages(
+    ctx: Context,
+    session: Session,
+    spaceCount: number,
+    spaceLines: number
+): Promise<number> {
+    const content = '\n'.repeat(spaceLines);
+    let sent = 0;
+    for (let i = 0; i < spaceCount; i++) {
+        try {
+            await session.send(content);
+            sent++;
+        } catch (error) {
+            ctx.logger('tools').debug(`发送空格消息 ${i + 1}/${spaceCount} 失败：`, error);
+        }
+        // 间隔 200ms，避免触发频率限制
+        if (i < spaceCount - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+    }
+    return sent;
+}
+
+/**
+ * 校验平台/群聊环境，按指定模式清屏。
+ * - recall：撤回最近 count 条消息（需群主）
+ * - space：发送大量空行消息
+ * - both：先撤回再发空格
  * 返回面向用户的结果文案。
  */
-async function doCleanScreen(ctx: Context, session: Session, count: number): Promise<string> {
+async function doCleanScreen(
+    ctx: Context,
+    session: Session,
+    mode: CleanMode,
+    count: number,
+    spaceCount: number,
+    spaceLines: number
+): Promise<string> {
     if (session.platform !== 'onebot') return '该指令仅支持 OneBot 平台。';
     const groupId = session.guildId;
     if (!groupId) return '请在群聊中使用该指令。';
 
-    // 校验机器人为群主：只有群主能撤回群内他人消息
-    try {
-        const selfInfo = await session.bot.internal.getGroupMemberInfo(groupId, session.bot.selfId);
-        if ((selfInfo as { role?: string })?.role !== 'owner') {
-            return '清屏失败：机器人需为本群群主才能撤回他人消息。';
-        }
-    } catch (error) {
-        ctx.logger('tools').error('查询机器人群成员信息失败：', error);
-        return '无法获取机器人在本群的成员信息，请确认机器人在本群内。';
-    }
+    const results: string[] = [];
+    const needRecall = mode === 'recall' || mode === 'both';
+    const needSpace = mode === 'space' || mode === 'both';
 
-    const targetIds = await collectRecentMessageIds(ctx, session, groupId, count);
-    if (!targetIds.length) {
-        return '没有可撤回的消息。';
-    }
-
-    // 逐条撤回；失败最常见原因是该消息已被撤回，静默跳过，仅 debug 记录
-    let success = 0;
-    let skipped = 0;
-    for (const id of targetIds) {
+    // ── 撤回阶段 ──
+    if (needRecall) {
+        // 校验机器人为群主：只有群主能撤回群内他人消息
+        let isOwner = false;
         try {
-            await session.bot.internal.deleteMsg(id);
-            success++;
-        } catch (error) {
-            ctx.logger('tools').debug(
-                `撤回 ${id} 失败（可能已撤回）：${describeRecallError(error)}`
+            const selfInfo = await session.bot.internal.getGroupMemberInfo(
+                groupId,
+                session.bot.selfId
             );
-            skipped++;
+            isOwner = (selfInfo as { role?: string })?.role === 'owner';
+        } catch (error) {
+            ctx.logger('tools').error('查询机器人群成员信息失败：', error);
+            return '无法获取机器人在本群的成员信息，请确认机器人在本群内。';
+        }
+
+        if (!isOwner) {
+            results.push('撤回失败：机器人需为本群群主才能撤回他人消息。');
+        } else {
+            const targetIds = await collectRecentMessageIds(ctx, session, groupId, count);
+            if (!targetIds.length) {
+                results.push('没有可撤回的消息。');
+            } else {
+                let success = 0;
+                let skipped = 0;
+                for (const id of targetIds) {
+                    try {
+                        await session.bot.internal.deleteMsg(id);
+                        success++;
+                    } catch (error) {
+                        ctx.logger('tools').debug(
+                            `撤回 ${id} 失败（可能已撤回）：${describeRecallError(error)}`
+                        );
+                        skipped++;
+                    }
+                }
+                if (skipped === 0) {
+                    results.push(`已撤回 ${success} 条消息。`);
+                } else {
+                    results.push(
+                        `已撤回 ${success} 条消息（另有 ${skipped} 条可能已撤回，已跳过）。`
+                    );
+                }
+            }
         }
     }
 
-    if (skipped === 0) return `已清屏：撤回 ${success} 条消息。`;
-    return `已撤回 ${success} 条消息（另有 ${skipped} 条可能已撤回，已跳过）。`;
+    // ── 发空格阶段 ──
+    if (needSpace) {
+        const sent = await sendSpaceMessages(ctx, session, spaceCount, spaceLines);
+        if (sent > 0) {
+            results.push(`已发送 ${sent} 条空行消息。`);
+        } else {
+            results.push('发送空行消息失败。');
+        }
+    }
+
+    return results.join(' ') || '清屏操作完成。';
 }
 
 export interface Config {
@@ -157,10 +232,16 @@ export interface Config {
      * 实际能否撤回仍由「机器人是否群主」与 OneBot 侧校验决定。
      */
     minAuthority: number;
+    /** 默认清屏模式：recall（撤回）/ space（发空格）/ both（混合）。 */
+    mode: CleanMode;
     /** 不传参时撤回的消息条数。 */
     count: number;
     /** 单次清屏允许撤回的最大条数，防止滥用。 */
     maxCount: number;
+    /** 发空格模式下一次发送的空行消息条数。 */
+    spaceCount: number;
+    /** 每条空行消息包含的换行数。 */
+    spaceLines: number;
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -170,6 +251,9 @@ export const Config: Schema<Config> = Schema.object({
         .max(5)
         .step(1)
         .description('使用「清屏」指令所需的最低用户权限等级（0-5）。默认 2。'),
+    mode: Schema.union(['recall', 'space', 'both'] as const)
+        .default('recall')
+        .description('默认清屏模式：recall（撤回）/ space（发空格）/ both（混合）。'),
     count: Schema.number()
         .default(20)
         .min(1)
@@ -182,23 +266,59 @@ export const Config: Schema<Config> = Schema.object({
         .max(1000)
         .step(1)
         .description('单次清屏允许撤回的最大条数，防止滥用。默认 50。'),
+    spaceCount: Schema.number()
+        .default(10)
+        .min(1)
+        .max(50)
+        .step(1)
+        .description('发空格模式下一次发送的空行消息条数。默认 10。'),
+    spaceLines: Schema.number()
+        .default(30)
+        .min(5)
+        .max(100)
+        .step(1)
+        .description('每条空行消息包含的换行数。默认 30。'),
 });
 
 export function apply(ctx: Context, config: Config) {
     const authority = config.minAuthority;
 
-    ctx.command('清屏 [count:number]', '撤回最近若干条消息（仅 OneBot，需群主）', { authority })
+    /**
+     * 解析用户输入的清屏类型字符串。
+     * 支持中文/英文别名：
+     * - 空格 / space
+     * - 撤回 / recall
+     * - 混合 / both
+     * 无法识别时返回 undefined。
+     */
+    function resolveMode(raw: string | undefined): CleanMode | undefined {
+        if (!raw) return undefined;
+        const v = raw.trim().toLowerCase();
+        if (v === '空格' || v === 'space') return 'space';
+        if (v === '撤回' || v === 'recall') return 'recall';
+        if (v === '混合' || v === 'both') return 'both';
+        return undefined;
+    }
+
+    ctx.command(
+        '清屏 [type:string] [count:number]',
+        '撤回最近若干条消息或发送空行清屏（仅 OneBot，撤回需群主）',
+        { authority }
+    )
         .alias('cleanscreen')
-        .action(async (argv, count) => {
+        .action(async (argv, type, count) => {
             const { session } = argv;
             if (!session) return '无法获取会话信息。';
+
+            const mode = resolveMode(type) ?? config.mode;
 
             const requested =
                 typeof count === 'number' && !Number.isNaN(count)
                     ? Math.floor(count)
                     : config.count;
             const clamped = Math.max(1, Math.min(requested, config.maxCount));
-            return doCleanScreen(ctx, session, clamped);
+
+            return doCleanScreen(ctx, session, mode, clamped, config.spaceCount, config.spaceLines);
         });
 
     ctx.logger('tools').info('CleanScreen 插件已加载');
