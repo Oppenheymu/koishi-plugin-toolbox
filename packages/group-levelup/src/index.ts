@@ -47,6 +47,9 @@ export const Config: Schema<Config> = Schema.intersect([
                 signInCron: Schema.string()
                     .default('0 0 * * *')
                     .required()
+                    .pattern(
+                        /^(\*|[0-9]{1,2})(\/(\*|[0-9]{1,2}))? ([1-5]?[0-9](\/[1-5]?[0-9])?|\*)( (\*|[1-5]?[0-9])(\/(\*|[1-5]?[0-9])?)?)( (\*|[1-5]?[0-9])(\/(\*|[1-5]?[0-9])?)?)( (\*|[1-5]?[0-9])(\/(\*|[1-5]?[0-9])?)?)$/
+                    )
                     .description('群打卡的 Cron 表达式，默认为每日 0 点'),
             }),
             Schema.object({}),
