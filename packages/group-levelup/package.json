@@ -1,6 +1,6 @@
 {
     "name": "koishi-plugin-group-levelup",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "contributors": [
         "Oppenheymu <oppenheymu@gmail.com>"
     ],
@@ -37,16 +37,18 @@
         "build": "tsc -b"
     },
     "peerDependencies": {
-        "koishi": "^4.17.4"
+        "koishi": "^4.17.4",
+        "koishi-plugin-cron-fix": "^1.0.0",
+        "koishi-plugin-adapter-onebot": "^6.0.0"
     },
     "koishi": {
         "description": {
-            "en": "Delete database tables with multi-step confirmation",
-            "zh": "一次性删表可以用我"
+            "en": "Auto group sign-in via NapCat for leveling up groups",
+            "zh": "通过群打卡和冒泡续火来快速升级群等级"
         },
         "service": {
             "required": [
-                "database"
+                "cron"
             ]
         }
     }
