@@ -1,50 +1,50 @@
 {
-  "name": "koishi-plugin-cleanscreen",
-  "version": "1.1.0",
-  "contributors": [
-    "Oppenheymu <oppenheymu@gmail.com>"
-  ],
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./lib/index.d.ts",
-      "development": "./src/index.ts",
-      "default": "./lib/index.js"
+    "name": "koishi-plugin-cleanscreen",
+    "version": "1.2.0",
+    "contributors": [
+        "Oppenheymu <oppenheymu@gmail.com>"
+    ],
+    "main": "lib/index.js",
+    "types": "lib/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./lib/index.d.ts",
+            "development": "./src/index.ts",
+            "default": "./lib/index.js"
+        },
+        "./package.json": "./package.json"
     },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "lib"
-  ],
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
-  "homepage": "https://github.com/Oppenheymu/koishi-plugin-toolbox/tree/main/packages/clean-screen",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Oppenheymu/koishi-plugin-toolbox.git",
-    "directory": "packages/clean-screen"
-  },
-  "keywords": [
-    "chatbot",
-    "koishi",
-    "plugin",
-    "clear",
-    "clean"
-  ],
-  "scripts": {
-    "build": "tsc -b"
-  },
-  "peerDependencies": {
-    "koishi": "^4.17.4"
-  },
-  "koishi": {
-    "description": {
-      "en": "Clear the screen by unsending messages",
-      "zh": "机器人必须是群主，通过撤回消息来（暴力）清屏"
+    "files": [
+        "lib"
+    ],
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
     },
-    "service": {}
-  }
+    "homepage": "https://github.com/Oppenheymu/koishi-plugin-toolbox/tree/main/packages/clean-screen",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Oppenheymu/koishi-plugin-toolbox.git",
+        "directory": "packages/clean-screen"
+    },
+    "keywords": [
+        "chatbot",
+        "koishi",
+        "plugin",
+        "clear",
+        "clean"
+    ],
+    "scripts": {
+        "build": "tsc -b"
+    },
+    "peerDependencies": {
+        "koishi": "^4.17.4"
+    },
+    "koishi": {
+        "description": {
+            "en": "Clear the screen by unsending messages",
+            "zh": "机器人必须是群主，通过撤回消息来（暴力）清屏"
+        },
+        "service": {}
+    }
 }

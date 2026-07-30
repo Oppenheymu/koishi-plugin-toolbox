@@ -301,11 +301,15 @@ export function apply(ctx: Context, config: Config) {
     }
 
     ctx.command(
-        '清屏 [type:string] [count:number]',
+        '清屏 <type:string> [count:number]',
         '撤回最近若干条消息或发送空行清屏（仅 OneBot，撤回需群主）',
         { authority }
     )
         .alias('cleanscreen')
+        .usage('类型支持：空格(space)、撤回(recall)、混合(both)；不传数量则使用默认值')
+        .example('清屏 空格       发空行消息顶屏')
+        .example('清屏 撤回 30    撤回最近 30 条消息')
+        .example('清屏 混合 20    先撤回 20 条再发空行')
         .action(async (argv, type, count) => {
             const { session } = argv;
             if (!session) return '无法获取会话信息。';
