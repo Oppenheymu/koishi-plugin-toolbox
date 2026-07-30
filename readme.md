@@ -11,6 +11,7 @@
 | [koishi-plugin-toolbox-deltable](./packages/del-table) | `packages/del-table` | ![npm](https://img.shields.io/npm/v/koishi-plugin-deltable) | 一次性硬删除数据表工具，多步确认防误操作 |
 | [koishi-plugin-setadmin](./packages/set-admin) | `packages/set-admin` | ![npm](https://img.shields.io/npm/v/koishi-plugin-setadmin) | 极致精简的 OneBot 群管理员设置/取消插件，开箱即用、零配置 |
 | [koishi-plugin-cleanscreen](./packages/clean-screen) | `packages/clean-screen` | ![npm](https://img.shields.io/npm/v/koishi-plugin-cleanscreen) | 极致精简的 OneBot 群清屏插件，撤回最近若干条消息 |
+| [koishi-plugin-group-levelup](./packages/group-levelup) | `packages/group-levelup` | ![npm](https://img.shields.io/npm/v/koishi-plugin-group-levelup) | OneBot 群打卡签到 + 每日随机冒泡，快速提升群等级 |
 
 ## 特性一览
 
@@ -46,6 +47,14 @@
 - 不传参按默认条数撤回，传参指定条数（受 `maxCount` 上限钳制）
 - 机器人需为 **群主** 才能撤回他人消息；自动翻页获取历史消息，跳过机器人自身消息
 - 已经被撤回的消息会被自动跳过（不计为失败），单条撤回失败不中断
+
+### 🆙 group-levelup
+
+- 仅适用于 **OneBot/NapCat** 平台，通过群打卡和冒泡快速提升群等级
+- **群打卡**：调用 NapCat `send_group_sign` 定时签到，默认每日 0 点
+- **随机冒泡**：每日在随机时间点发送自定义文本，模拟真人活跃
+- 打卡和冒泡可独立开关，冒泡次数和文本均可自定义
+- 依赖 `cron` 服务（由 `koishi-plugin-cron-fix` 提供）
 
 ## 交流与反馈
 
