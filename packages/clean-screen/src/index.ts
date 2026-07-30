@@ -15,13 +15,11 @@ export const usage = `
 <div style="border-radius: 10px; border: 1px solid #ddd; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
   <h2 style="margin-top: 0; color: #e0574a;">⚡ 命令</h2>
   <ul>
-    <li><code>清屏</code> — 按默认类型和数量清屏</li>
     <li><code>清屏 &lt;类型&gt;</code> — 按指定类型清屏（空格 / 撤回 / 混合）</li>
     <li><code>清屏 &lt;类型&gt; &lt;条数&gt;</code> — 按指定类型和数量清屏</li>
-    <li><code>cleanscreen</code> — 同上（英文别名）</li>
     <li><code>cleanscreen &lt;类型&gt; [条数]</code> — 同上（英文别名）</li>
   </ul>
-  <p>📌 <strong>清屏类型说明：</strong></p>
+  <p>📌 <strong>清屏类型说明（必填）：</strong></p>
   <ul>
     <li><code>空格</code> / <code>space</code> — 发送大量空行消息，将聊天记录「顶」出屏幕</li>
     <li><code>撤回</code> / <code>recall</code> — 撤回最近若干条消息（默认，需群主）</li>
@@ -232,8 +230,6 @@ export interface Config {
      * 实际能否撤回仍由「机器人是否群主」与 OneBot 侧校验决定。
      */
     minAuthority: number;
-    /** 默认清屏模式：recall（撤回）/ space（发空格）/ both（混合）。 */
-    mode: CleanMode;
     /** 不传参时撤回的消息条数。 */
     count: number;
     /** 单次清屏允许撤回的最大条数，防止滥用。 */
@@ -251,9 +247,6 @@ export const Config: Schema<Config> = Schema.object({
         .max(5)
         .step(1)
         .description('使用「清屏」指令所需的最低用户权限等级（0-5）。默认 2。'),
-    mode: Schema.union(['recall', 'space', 'both'] as const)
-        .default('recall')
-        .description('默认清屏模式：recall（撤回）/ space（发空格）/ both（混合）。'),
     count: Schema.number()
         .default(20)
         .min(1)
@@ -302,7 +295,7 @@ export function apply(ctx: Context, config: Config) {
 
     ctx.command(
         '清屏 <type:string> [count:number]',
-        '撤回最近若干条消息或发送空行清屏（仅 OneBot，撤回需群主）',
+        '撤回最近若干条消息或发送空行清屏（撤回需管理）',
         { authority }
     )
         .alias('cleanscreen')
@@ -314,7 +307,8 @@ export function apply(ctx: Context, config: Config) {
             const { session } = argv;
             if (!session) return '无法获取会话信息。';
 
-            const mode = resolveMode(type) ?? config.mode;
+            const mode = resolveMode(type);
+            if (!mode) return '请指定清屏类型：空格(space)、撤回(recall)、混合(both)。';
 
             const requested =
                 typeof count === 'number' && !Number.isNaN(count)
