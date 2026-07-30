@@ -26,31 +26,54 @@ export interface Config {
     /** 是否启用每日群打卡签到 */
     signIn: boolean;
     /** 群打卡的 Cron 表达式 */
-    signInCron: string;
+    signInCron?: string;
     /** 是否启用每日随机冒泡 */
     bubble: boolean;
     /** 每日冒泡次数 */
-    bubbleCount: number;
+    bubbleCount?: number;
     /** 冒泡文本列表，每次随机选择一条 */
-    bubbleTexts: string[];
+    bubbleTexts?: string[];
 }
 
-export const Config: Schema<Config> = Schema.object({
-    signIn: Schema.boolean().default(true).description('是否启用每日群打卡签到'),
-    signInCron: Schema.string()
-        .default('0 0 * * *')
-        .description('群打卡的 Cron 表达式，默认为每日 0 点'),
-    bubble: Schema.boolean().default(true).description('是否启用每日随机冒泡'),
-    bubbleCount: Schema.number()
-        .default(1)
-        .min(1)
-        .max(10)
-        .step(1)
-        .description('每日冒泡次数 (1-10)'),
-    bubbleTexts: Schema.array(Schema.string())
-        .default(['冒泡'])
-        .description('冒泡文本列表，每次随机选择一条发送'),
-});
+export const Config: Schema<Config> = Schema.intersect([
+    // 群打卡配置块
+    Schema.intersect([
+        Schema.object({
+            signIn: Schema.boolean().default(true).description('是否启用每日群打卡签到'),
+        }).description('群打卡'),
+        Schema.union([
+            Schema.object({
+                signIn: Schema.const(true).required(),
+                signInCron: Schema.string()
+                    .default('0 0 * * *')
+                    .required()
+                    .description('群打卡的 Cron 表达式，默认为每日 0 点'),
+            }),
+            Schema.object({}),
+        ]),
+    ]),
+    // 随机冒泡配置块
+    Schema.intersect([
+        Schema.object({
+            bubble: Schema.boolean().default(true).description('是否启用每日随机冒泡'),
+        }).description('随机冒泡'),
+        Schema.union([
+            Schema.object({
+                bubble: Schema.const(true).required(),
+                bubbleCount: Schema.number()
+                    .default(1)
+                    .min(1)
+                    .step(1)
+                    .required()
+                    .description('每日冒泡次数 (1-10)'),
+                bubbleTexts: Schema.array(Schema.string())
+                    .default(['冒泡'])
+                    .description('冒泡文本列表，每次随机选择一条发送'),
+            }),
+            Schema.object({}),
+        ]),
+    ]),
+]);
 
 export const inject = {
     required: ['cron'],
@@ -61,7 +84,7 @@ function pickRandom<T>(arr: readonly T[]): T {
 }
 
 function scheduleBubble(ctx: Context, config: Config, logger: ReturnType<typeof ctx.logger>) {
-    const count = config.bubbleCount;
+    const count = config.bubbleCount ?? 1;
     const dayMs = 24 * 60 * 60 * 1000;
     // 将一天分成 count 段，每段内随机取一个时间点
     const segmentMs = dayMs / count;
@@ -74,7 +97,8 @@ function scheduleBubble(ctx: Context, config: Config, logger: ReturnType<typeof 
         ctx.setTimeout(async () => {
             if (!config.bubble) return;
 
-            const text = pickRandom(config.bubbleTexts);
+            const texts = config.bubbleTexts ?? ['冒泡'];
+            const text = pickRandom(texts);
             const bots = ctx.bots;
 
             for (const bot of bots) {
@@ -108,7 +132,7 @@ export function apply(ctx: Context, config: Config) {
 
     // 群打卡
     if (config.signIn) {
-        ctx.cron(config.signInCron, async () => {
+        ctx.cron(config.signInCron ?? '0 0 * * *', async () => {
             const bots = ctx.bots;
             for (const bot of bots) {
                 if (bot.platform !== 'onebot') continue;
