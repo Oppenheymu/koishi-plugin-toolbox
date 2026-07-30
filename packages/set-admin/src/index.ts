@@ -1,6 +1,5 @@
 import { Schema } from 'koishi';
 import type { Context, Session } from 'koishi';
-import {} from 'koishi-plugin-adapter-onebot';
 
 
 export const name = 'SetAdmin';
