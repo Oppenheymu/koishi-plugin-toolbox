@@ -41,6 +41,8 @@ export const usage = `
 </div>
 `;
 
+//todo: 往ctx暴露方法
+
 export function apply(ctx: Context, config: ConfigOptions) {
     const { minAuthority: authority } = config;
 
