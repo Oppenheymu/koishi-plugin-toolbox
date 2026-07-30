@@ -21,7 +21,7 @@ export const usage = `
   </ul>
   <p>📌 <strong>清屏类型说明（必填）：</strong></p>
   <ul>
-    <li><code>空格</code> / <code>space</code> — 发送大量空行消息，将聊天记录「顶」出屏幕</li>
+    <li><code>空格</code> / <code>space</code> — 发送一条长空白消息，将聊天记录「顶」出屏幕</li>
     <li><code>撤回</code> / <code>recall</code> — 撤回最近若干条消息（默认，需群主）</li>
     <li><code>混合</code> / <code>both</code> — 先撤回再发空格，双保险</li>
   </ul>
@@ -114,30 +114,23 @@ function describeRecallError(error: unknown): string {
 type CleanMode = 'recall' | 'space' | 'both';
 
 /**
- * 发送大量仅含空行的消息，将聊天记录「顶」出屏幕。
- * 逐条发送，间隔 200ms 避免触发频率限制。
+ * 发送一条以零宽空格开头、后跟大量换行的长消息，将聊天记录「顶」出屏幕。
+ * \u200B 用于防止 QQ 将消息当作空内容忽略。
  */
-async function sendSpaceMessages(
+async function sendSpaceMessage(
     ctx: Context,
     session: Session,
-    spaceCount: number,
     spaceLines: number
-): Promise<number> {
-    const content = '\n'.repeat(spaceLines);
-    let sent = 0;
-    for (let i = 0; i < spaceCount; i++) {
-        try {
-            await session.send(content);
-            sent++;
-        } catch (error) {
-            ctx.logger('tools').debug(`发送空格消息 ${i + 1}/${spaceCount} 失败：`, error);
-        }
-        // 间隔 200ms，避免触发频率限制
-        if (i < spaceCount - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 200));
-        }
+): Promise<boolean> {
+    // \u200B 零宽空格确保消息不被 QQ 当作空消息丢弃
+    const content = '\u200B' + '\n'.repeat(spaceLines);
+    try {
+        await session.send(content);
+        return true;
+    } catch (error) {
+        ctx.logger('tools').debug('发送空格消息失败：', error);
+        return false;
     }
-    return sent;
 }
 
 /**
@@ -152,7 +145,6 @@ async function doCleanScreen(
     session: Session,
     mode: CleanMode,
     count: number,
-    spaceCount: number,
     spaceLines: number
 ): Promise<string> {
     if (session.platform !== 'onebot') return '该指令仅支持 OneBot 平台。';
@@ -211,11 +203,11 @@ async function doCleanScreen(
 
     // ── 发空格阶段 ──
     if (needSpace) {
-        const sent = await sendSpaceMessages(ctx, session, spaceCount, spaceLines);
-        if (sent > 0) {
-            results.push(`已发送 ${sent} 条空行消息。`);
+        const ok = await sendSpaceMessage(ctx, session, spaceLines);
+        if (ok) {
+            results.push('已发送空白消息，聊天记录已清屏。');
         } else {
-            results.push('发送空行消息失败。');
+            results.push('发送空白消息失败。');
         }
     }
 
@@ -234,9 +226,7 @@ export interface Config {
     count: number;
     /** 单次清屏允许撤回的最大条数，防止滥用。 */
     maxCount: number;
-    /** 发空格模式下一次发送的空行消息条数。 */
-    spaceCount: number;
-    /** 每条空行消息包含的换行数。 */
+    /** 空白消息中包含的换行数（越大空白越长）。 */
     spaceLines: number;
 }
 
@@ -259,18 +249,12 @@ export const Config: Schema<Config> = Schema.object({
         .max(1000)
         .step(1)
         .description('单次清屏允许撤回的最大条数，防止滥用。默认 50。'),
-    spaceCount: Schema.number()
-        .default(10)
-        .min(1)
-        .max(50)
-        .step(1)
-        .description('发空格模式下一次发送的空行消息条数。默认 10。'),
     spaceLines: Schema.number()
-        .default(30)
-        .min(5)
-        .max(100)
+        .default(60)
+        .min(10)
+        .max(200)
         .step(1)
-        .description('每条空行消息包含的换行数。默认 30。'),
+        .description('空白消息中包含的换行数（越大空白越长）。默认 60。'),
 });
 
 export function apply(ctx: Context, config: Config) {
@@ -300,7 +284,7 @@ export function apply(ctx: Context, config: Config) {
     )
         .alias('cleanscreen')
         .usage('类型支持：空格(space)、撤回(recall)、混合(both)；不传数量则使用默认值')
-        .example('清屏 空格       发空行消息顶屏')
+        .example('清屏 空格       发送一条长空白消息顶屏')
         .example('清屏 撤回 30    撤回最近 30 条消息')
         .example('清屏 混合 20    先撤回 20 条再发空行')
         .action(async (argv, type, count) => {
@@ -316,7 +300,7 @@ export function apply(ctx: Context, config: Config) {
                     : config.count;
             const clamped = Math.max(1, Math.min(requested, config.maxCount));
 
-            return doCleanScreen(ctx, session, mode, clamped, config.spaceCount, config.spaceLines);
+            return doCleanScreen(ctx, session, mode, clamped, config.spaceLines);
         });
 
     ctx.logger('tools').info('CleanScreen 插件已加载');
