@@ -1,5 +1,11 @@
-import { type Context, Schema, type Session } from 'koishi';
+import type { Context } from 'koishi';
 import 'koishi-plugin-adapter-onebot';
+
+export { Config } from './config';
+export type { ConfigOptions, CleanMode } from './config';
+
+import type { ConfigOptions } from './config';
+import { doCleanScreen } from './clean';
 
 export const name = 'clean-screen';
 
@@ -35,246 +41,8 @@ export const usage = `
 </div>
 `;
 
-/**
- * 获取本群最近 count 条消息的 message_id（按时间从新到旧），跳过机器人自身消息。
- *
- * napcat 的 get_group_msg_history 传 message_seq 时不会向前回溯（Issue #441），
- * 故翻页无效；但其支持 count 参数，可一次指定返回条数。koishi 适配器的
- * internal.getGroupMsgHistory 未暴露 count，这里通过底层 _request 直接调用，
- * 不传 message_seq 即从最新消息向前取 count 条。
- */
-async function collectRecentMessageIds(
-    ctx: Context,
-    session: Session,
-    groupId: string,
-    count: number
-): Promise<number[]> {
-    const selfId = session.bot.selfId;
-
-    let messages: { message_id: number; sender?: { user_id?: number } }[];
-    try {
-        // koishi 适配器未暴露 count 参数，直接通过底层 _request 调用 napcat 原生接口
-        const response = await session.bot.internal._request?.('get_group_msg_history', {
-            group_id: groupId,
-            count,
-        });
-        if (response?.retcode !== 0) {
-            ctx.logger('tools').error(
-                `获取群历史消息失败：retcode ${response?.retcode ?? 'unknown'}`
-            );
-            return [];
-        }
-        messages = (response.data?.messages ?? []) as typeof messages;
-    } catch (error) {
-        ctx.logger('tools').error('获取群历史消息失败：', error);
-        return [];
-    }
-
-    const targetIds: number[] = [];
-    const seen = new Set<number>();
-    // 历史消息按时间正序（旧→新），从最新一条向前收集
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
-        if (seen.has(msg.message_id)) continue;
-        seen.add(msg.message_id);
-
-        // 跳过机器人自身的历史消息
-        const senderId = msg.sender?.user_id;
-        if (senderId !== undefined && String(senderId) === selfId) continue;
-
-        targetIds.push(msg.message_id);
-        if (targetIds.length >= count) break;
-    }
-    return targetIds;
-}
-
-/**
- * 从 delete_msg 失败的 SenderError 中提取 retcode，返回简短标识（仅用于 debug 日志）。
- *
- * 撤回失败最常见原因是目标消息已被撤回，调用方会将其静默跳过，
- * 此处仅给出 retcode 便于排查，不做可能误导的具体归因。
- *
- * koishi-plugin-adapter-onebot 抛出的 SenderError 会把 retcode 同时挂在
- * `error.code` 与 `error.message` 文本中，两种来源都做兼容读取。
- */
-function describeRecallError(error: unknown): string {
-    const err = error as { code?: unknown; message?: string } | undefined;
-    const code = typeof err?.code === 'number' ? err.code : undefined;
-
-    let retcode = code;
-    if (retcode === undefined && err?.message) {
-        const match = err.message.match(/retcode[:\s]*(\d+)/i);
-        if (match) retcode = Number(match[1]);
-    }
-
-    return retcode === undefined ? '未知错误' : `retcode ${retcode}`;
-}
-
-/** 清屏模式类型 */
-type CleanMode = 'recall' | 'space' | 'both';
-
-/**
- * 发送一条由大量空白行组成的长消息，将聊天记录「顶」出屏幕。
- * 每行开头都有一个 \u200B（零宽空格），防止 QQ 将空行折叠或当作空消息丢弃。
- */
-async function sendSpaceMessage(
-    ctx: Context,
-    session: Session,
-    spaceLines: number
-): Promise<boolean> {
-    // \u200B 零宽空格：每行一个，确保 QQ 不会合并连续空行
-    const content = '\u200B\n'.repeat(spaceLines);
-    try {
-        await session.send(content);
-        return true;
-    } catch (error) {
-        ctx.logger('tools').debug('发送空格消息失败：', error);
-        return false;
-    }
-}
-
-/**
- * 校验平台/群聊环境，按指定模式清屏。
- * - recall：撤回最近 count 条消息（需群主）
- * - space：发送大量空行消息
- * - both：先撤回再发空格
- * 返回面向用户的结果文案。
- */
-async function doCleanScreen(
-    ctx: Context,
-    session: Session,
-    mode: CleanMode,
-    count: number,
-    spaceLines: number
-): Promise<string> {
-    if (session.platform !== 'onebot') return '该指令仅支持 OneBot 平台。';
-    const groupId = session.guildId;
-    if (!groupId) return '请在群聊中使用该指令。';
-
-    const results: string[] = [];
-    const needRecall = mode === 'recall' || mode === 'both';
-    const needSpace = mode === 'space' || mode === 'both';
-
-    // ── 撤回阶段 ──
-    if (needRecall) {
-        // 校验机器人为群主：只有群主能撤回群内他人消息
-        let isOwner = false;
-        try {
-            const selfInfo = await session.bot.internal.getGroupMemberInfo(
-                groupId,
-                session.bot.selfId
-            );
-            isOwner = (selfInfo as { role?: string })?.role === 'owner';
-        } catch (error) {
-            ctx.logger('tools').error('查询机器人群成员信息失败：', error);
-            return '无法获取机器人在本群的成员信息，请确认机器人在本群内。';
-        }
-
-        if (!isOwner) {
-            results.push('撤回失败：机器人需为本群群主才能撤回他人消息。');
-        } else {
-            const targetIds = await collectRecentMessageIds(ctx, session, groupId, count);
-            if (!targetIds.length) {
-                results.push('没有可撤回的消息。');
-            } else {
-                let success = 0;
-                let skipped = 0;
-                for (const id of targetIds) {
-                    try {
-                        await session.bot.internal.deleteMsg(id);
-                        success++;
-                    } catch (error) {
-                        ctx.logger('tools').debug(
-                            `撤回 ${id} 失败（可能已撤回）：${describeRecallError(error)}`
-                        );
-                        skipped++;
-                    }
-                }
-                if (skipped === 0) {
-                    results.push(`已撤回 ${success} 条消息。`);
-                } else {
-                    results.push(
-                        `已撤回 ${success} 条消息（另有 ${skipped} 条可能已撤回，已跳过）。`
-                    );
-                }
-            }
-        }
-    }
-
-    // ── 发空格阶段 ──
-    if (needSpace) {
-        const ok = await sendSpaceMessage(ctx, session, spaceLines);
-        if (ok) {
-            results.push('已发送空白消息，聊天记录已清屏。');
-        } else {
-            results.push('发送空白消息失败。');
-        }
-    }
-
-    return results.join(' ') || '清屏操作完成。';
-}
-
-export interface Config {
-    /**
-     * 使用「清屏」指令所需的最低用户权限等级。
-     * Koishi 默认权限等级：0 未授权，1 普通用户，2 管理员，3 超管，4+ 自定义。
-     * 清屏会撤回群内消息，影响较大，默认要求管理员（2）。
-     * 实际能否撤回仍由「机器人是否群主」与 OneBot 侧校验决定。
-     */
-    minAuthority: number;
-    /** 不传参时撤回的消息条数。 */
-    count: number;
-    /** 单次清屏允许撤回的最大条数，防止滥用。 */
-    maxCount: number;
-    /** 空白消息中包含的换行数（越大空白越长）。 */
-    spaceLines: number;
-}
-
-export const Config: Schema<Config> = Schema.object({
-    minAuthority: Schema.number()
-        .default(2)
-        .min(0)
-        .max(5)
-        .step(1)
-        .description('使用「清屏」指令所需的最低用户权限等级（0-5）。默认 2。'),
-    count: Schema.number()
-        .default(20)
-        .min(1)
-        .max(500)
-        .step(1)
-        .description('不传参时撤回的消息条数。默认 20。'),
-    maxCount: Schema.number()
-        .default(50)
-        .min(1)
-        .max(1000)
-        .step(1)
-        .description('单次清屏允许撤回的最大条数，防止滥用。默认 50。'),
-    spaceLines: Schema.number()
-        .default(1000)
-        .min(10)
-        .step(1)
-        .description('空白消息中包含的换行数（越大空白越长）。小了没效果'),
-});
-
-export function apply(ctx: Context, config: Config) {
-    const authority = config.minAuthority;
-
-    /**
-     * 解析用户输入的清屏类型字符串。
-     * 支持中文/英文别名：
-     * - 空格 / space
-     * - 撤回 / recall
-     * - 混合 / both
-     * 无法识别时返回 undefined。
-     */
-    function resolveMode(raw: string | undefined): CleanMode | undefined {
-        if (!raw) return undefined;
-        const v = raw.trim().toLowerCase();
-        if (v === '空格' || v === 'space') return 'space';
-        if (v === '撤回' || v === 'recall') return 'recall';
-        if (v === '混合' || v === 'both') return 'both';
-        return undefined;
-    }
+export function apply(ctx: Context, config: ConfigOptions) {
+    const { minAuthority: authority } = config;
 
     ctx.command(
         '清屏 <type:string> [count:number]',
@@ -303,4 +71,21 @@ export function apply(ctx: Context, config: Config) {
         });
 
     ctx.logger('tools').info('CleanScreen 插件已加载');
+}
+
+/**
+ * 解析用户输入的清屏类型字符串。
+ * 支持中文/英文别名：
+ * - 空格 / space
+ * - 撤回 / recall
+ * - 混合 / both
+ * 无法识别时返回 undefined。
+ */
+function resolveMode(raw: string | undefined) {
+    if (!raw) return undefined;
+    const v = raw.trim().toLowerCase();
+    if (v === '空格' || v === 'space') return 'space' as const;
+    if (v === '撤回' || v === 'recall') return 'recall' as const;
+    if (v === '混合' || v === 'both') return 'both' as const;
+    return undefined;
 }
